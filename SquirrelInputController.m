@@ -113,7 +113,7 @@ const int N_KEY_ROLL_OVER = 50;
       } break;
       case NSEventTypeKeyDown: {
         // ignore Command+X hotkeys.
-        if (modifiers & OSX_COMMAND_MASK)
+        if (modifiers & OSX_COMMAND_MASK && event.keyCode != OSX_VK_DELETE)
           break;
 
         int keyCode = event.keyCode;
@@ -123,6 +123,18 @@ const int N_KEY_ROLL_OVER = 50;
         }
         //NSLog(@"KEYDOWN client: %@, modifiers: 0x%lx, keyCode: %d, keyChars: [%@]",
         //      sender, modifiers, keyCode, keyChars);
+        
+        // REMAP: c-w = opt-backspace to shift-backspace
+        if ((modifiers & OSX_ALT_MASK) && keyCode == OSX_VK_DELETE) {
+          modifiers = OSX_SHIFT_MASK;
+        }
+
+        // REMAP: c-u = cmd-backspace to esc
+        if ((modifiers & OSX_COMMAND_MASK) && keyCode == OSX_VK_DELETE) {
+          modifiers = 0;
+          keyCode = OSX_VK_ESCAPE;
+          keyChars = @"\\^[";;
+        }
 
         // translate osx keyevents to rime keyevents
         int rime_keycode = osx_keycode_to_rime_keycode(
