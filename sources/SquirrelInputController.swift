@@ -5,6 +5,7 @@
 //  Created by Leo Liu on 5/7/24.
 //
 
+import Carbon
 import InputMethodKit
 
 final class SquirrelInputController: IMKInputController {
@@ -105,27 +106,41 @@ final class SquirrelInputController: IMKInputController {
       rimeUpdate()
 
     case .keyDown:
-      // ignore Command+X hotkeys.
-      if modifiers.contains(.command) {
+      // ignore Command+X hotkeys, but allow Command+Delete.
+      if modifiers.contains(.command) && event.keyCode != UInt16(kVK_Delete) {
         break
       }
 
-      let keyCode = event.keyCode
+      var keyCode = event.keyCode
       var keyChars = event.charactersIgnoringModifiers
-      let capitalModifiers = modifiers.isSubset(of: [.shift, .capsLock])
+      var modifiedModifiers = modifiers  // 可变的修饰键，用于重映射
+
+      // REMAP: Opt+Delete → Shift+Delete (删除一个词)
+      if modifiers.contains(.option) && keyCode == UInt16(kVK_Delete) {
+        modifiedModifiers = .shift
+      }
+
+      // REMAP: Cmd+Delete → Esc (取消输入)
+      if modifiers.contains(.command) && keyCode == UInt16(kVK_Delete) {
+        modifiedModifiers = []
+        keyCode = UInt16(kVK_Escape)
+        keyChars = nil
+      }
+
+      let capitalModifiers = modifiedModifiers.isSubset(of: [.shift, .capsLock])
       if let code = keyChars?.first,
          (capitalModifiers && !code.isLetter) || (!capitalModifiers && !code.isASCII) {
         keyChars = event.characters
       }
-      // print("[DEBUG] KEYDOWN client: \(sender ?? "nil"), modifiers: \(modifiers), keyCode: \(keyCode), keyChars: [\(keyChars ?? "empty")]")
+      // print("[DEBUG] KEYDOWN client: \(sender ?? "nil"), modifiers: \(modifiedModifiers), keyCode: \(keyCode), keyChars: [\(keyChars ?? "empty")]")
 
       // translate osx keyevents to rime keyevents
       if let char = keyChars?.first {
         let rimeKeycode = SquirrelKeycode.osxKeycodeToRime(keycode: keyCode, keychar: char,
-                                                           shift: modifiers.contains(.shift),
-                                                           caps: modifiers.contains(.capsLock))
+                                                           shift: modifiedModifiers.contains(.shift),
+                                                           caps: modifiedModifiers.contains(.capsLock))
         if rimeKeycode != 0 {
-          let rimeModifiers = SquirrelKeycode.osxModifiersToRime(modifiers: modifiers)
+          let rimeModifiers = SquirrelKeycode.osxModifiersToRime(modifiers: modifiedModifiers)
           handled = processKey(rimeKeycode, modifiers: rimeModifiers)
           rimeUpdate()
         }
