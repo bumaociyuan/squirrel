@@ -124,7 +124,18 @@ final class SquirrelInputController: IMKInputController {
       if modifiers.contains(.command) && keyCode == UInt16(kVK_Delete) {
         modifiedModifiers = []
         keyCode = UInt16(kVK_Escape)
-        keyChars = nil
+      }
+
+      // REMAP: Ctrl+U → Esc (取消输入)
+      if modifiers.contains(.control) && keyCode == UInt16(kVK_ANSI_U) {
+        modifiedModifiers = []
+        keyCode = UInt16(kVK_Escape)
+      }
+
+      // REMAP: Ctrl+W → Shift+Delete (删除一个词)
+      if modifiers.contains(.control) && keyCode == UInt16(kVK_ANSI_W) {
+        modifiedModifiers = .shift
+        keyCode = UInt16(kVK_Delete)
       }
 
       let capitalModifiers = modifiedModifiers.isSubset(of: [.shift, .capsLock])
@@ -135,15 +146,13 @@ final class SquirrelInputController: IMKInputController {
       // print("[DEBUG] KEYDOWN client: \(sender ?? "nil"), modifiers: \(modifiedModifiers), keyCode: \(keyCode), keyChars: [\(keyChars ?? "empty")]")
 
       // translate osx keyevents to rime keyevents
-      if let char = keyChars?.first {
-        let rimeKeycode = SquirrelKeycode.osxKeycodeToRime(keycode: keyCode, keychar: char,
+      let rimeKeycode = SquirrelKeycode.osxKeycodeToRime(keycode: keyCode, keychar: keyChars?.first,
                                                            shift: modifiedModifiers.contains(.shift),
                                                            caps: modifiedModifiers.contains(.capsLock))
-        if rimeKeycode != 0 {
-          let rimeModifiers = SquirrelKeycode.osxModifiersToRime(modifiers: modifiedModifiers)
-          handled = processKey(rimeKeycode, modifiers: rimeModifiers)
-          rimeUpdate()
-        }
+      if rimeKeycode != 0 {
+        let rimeModifiers = SquirrelKeycode.osxModifiersToRime(modifiers: modifiedModifiers)
+        handled = processKey(rimeKeycode, modifiers: rimeModifiers)
+        rimeUpdate()
       }
 
     default:
